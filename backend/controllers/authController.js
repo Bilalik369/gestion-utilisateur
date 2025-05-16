@@ -1,26 +1,31 @@
-import User from '..';
+import User from '../models/User.js';
 import UserLog from '../models/UserLog.js';
 import { generateToken } from '../utils/tokenService.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/emailService.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
+// @desc    Register a new user
+// @route   POST /api/auth/register
+// @access  Public
 export const register = async (req, res) => {
   try {
     const { username, email, password, phone } = req.body;
 
+    // Check if user already exists
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
-    
+    // Generate verification token
     const verificationToken = generateToken();
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    
+    // Create user
     const user = await User.create({
       username,
       email,
@@ -31,10 +36,10 @@ export const register = async (req, res) => {
       isVerified: false
     });
 
-    
+    // Send verification email
     await sendVerificationEmail(email, username, verificationToken);
 
-   
+    // Log user registration
     await UserLog.create({
       userId: user._id,
       action: 'register',
@@ -52,11 +57,14 @@ export const register = async (req, res) => {
   }
 };
 
+// @desc    Verify user email
+// @route   GET /api/auth/verify/:token
+// @access  Public
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
 
-   
+    // Find user with this token
     const user = await User.findOne({
       verificationToken: token,
       verificationTokenExpires: { $gt: Date.now() }
@@ -66,13 +74,13 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'Token de vérification invalide ou expiré' });
     }
 
-
+    // Update user
     user.isVerified = true;
     user.verificationToken = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
 
- 
+    // Log verification
     await UserLog.create({
       userId: user._id,
       action: 'verify_email',
@@ -88,34 +96,38 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
+    // Check if user is verified
     if (!user.isVerified) {
       return res.status(401).json({ message: 'Veuillez vérifier votre email avant de vous connecter' });
     }
 
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     }
 
-    
+    // Generate JWT token
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    
+    // Log login
     await UserLog.create({
       userId: user._id,
       action: 'login',
@@ -139,30 +151,34 @@ export const login = async (req, res) => {
   }
 };
 
-
+// @desc    Forgot password
+// @route   POST /api/auth/forgot-password
+// @access  Public
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
- 
+    // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      
+      // For security reasons, don't reveal if user exists
       return res.status(200).json({ 
         message: 'Si votre email est enregistré, vous recevrez un lien de réinitialisation' 
       });
     }
 
+    // Generate reset token
     const resetToken = generateToken();
 
-    
+    // Update user
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
+    // Send reset email
     await sendPasswordResetEmail(email, user.username, resetToken);
 
-  
+    // Log password reset request
     await UserLog.create({
       userId: user._id,
       action: 'forgot_password',
@@ -180,12 +196,15 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-
+// @desc    Reset password
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
+    // Find user with this token
     const user = await User.findOne({
       resetPasswordToken: token,
       resetPasswordExpires: { $gt: Date.now() }
@@ -195,16 +214,17 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Token de réinitialisation invalide ou expiré' });
     }
 
+    // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-
+    // Update user
     user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-  
+    // Log password reset
     await UserLog.create({
       userId: user._id,
       action: 'reset_password',

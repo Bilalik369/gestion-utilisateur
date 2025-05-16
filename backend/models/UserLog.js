@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const UserLogSchema = new mongoose.Schema({
   userId: {
@@ -33,4 +33,4 @@ const UserLogSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('UserLog', UserLogSchema);
+export default mongoose.model('UserLog', UserLogSchema);

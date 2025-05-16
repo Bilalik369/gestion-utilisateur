@@ -1,6 +1,6 @@
-const emailjs = require('@emailjs/nodejs');
+import emailjs from '@emailjs/nodejs';
 
-
+// Initialize EmailJS
 emailjs.init({
   publicKey: process.env.EMAILJS_PUBLIC_KEY,
   privateKey: process.env.EMAILJS_PRIVATE_KEY
@@ -13,7 +13,7 @@ emailjs.init({
  * @param {string} token - Verification token
  * @returns {Promise} - EmailJS response
  */
-exports.sendVerificationEmail = async (email, username, token) => {
+export const sendVerificationEmail = async (email, username, token) => {
   try {
     const verificationUrl = `${process.env.CLIENT_URL}/verify-email/${token}`;
     
@@ -45,7 +45,7 @@ exports.sendVerificationEmail = async (email, username, token) => {
  * @param {string} token - Reset token
  * @returns {Promise} - EmailJS response
  */
-exports.sendPasswordResetEmail = async (email, username, token) => {
+export const sendPasswordResetEmail = async (email, username, token) => {
   try {
     const resetUrl = `${process.env.CLIENT_URL}/reset-password/${token}`;
     
@@ -77,7 +77,7 @@ exports.sendPasswordResetEmail = async (email, username, token) => {
  * @param {string} token - Email change token
  * @returns {Promise} - EmailJS response
  */
-exports.sendEmailChangeConfirmation = async (newEmail, username, token) => {
+export const sendEmailChangeConfirmation = async (newEmail, username, token) => {
   try {
     const confirmationUrl = `${process.env.CLIENT_URL}/confirm-email/${token}`;
     
